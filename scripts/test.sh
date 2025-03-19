@@ -19,7 +19,7 @@ export PYTHONPATH="$WORKDIR:$PYTHONPATH"
 # python ./notebook/test_query.py
 # python ./notebook/delete_milvus_collection.py
 # python ./notebook/check_mongo.py
-python ./notebook/check_mongo.py
+# python ./notebook/test_mongo_connect.py
 # python ./notebook/check_connect.py
 # python ./notebook/test_structure.py
 # python ./src/sort_mongo/sort.py
@@ -27,3 +27,5 @@ python ./notebook/check_mongo.py
 # python ./notebook/test_search.py
 # python ./src/llms/gemini.py
 # python ./notebook/test_search.py
+# python ./notebook/test_gemini.py
+python ./notebook/test_full_query.py

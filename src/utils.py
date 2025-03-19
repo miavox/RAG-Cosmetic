@@ -1,4 +1,5 @@
 import json
+import re
 
 def generate_query_texts_fields(query):
     special_fields = ["ingredients", "instructions", "description", "name", "comments"]
@@ -147,3 +148,32 @@ def adjust_and_ensure_json(input_json):
 
     input_json["special_requirements"] = special_requirements
     return input_json
+
+def change_to_json(result):
+    def sanitize_input(raw_input):
+        """
+        Sanitize raw input by removing formatting artifacts like backticks and fixing common issues.
+        """
+        sanitized_input = re.sub(r"^```(?:json)?|```$", "", raw_input.strip(), flags=re.MULTILINE)
+        return sanitized_input.strip()
+
+    def replace_nulls(obj):
+        """
+        Recursively replace all occurrences of the string "null" or None-like strings with None.
+        """
+        if isinstance(obj, dict):
+            return {k: replace_nulls(v) for k, v in obj.items()}
+        elif isinstance(obj, list):
+            return [replace_nulls(item) for item in obj]
+        elif obj in ["null", None]:  # Replace "null" string or actual None with Python None
+            return None
+        return obj
+
+    try:
+        sanitized_result = sanitize_input(result)
+        parsed_json = json.loads(sanitized_result)
+        return replace_nulls(parsed_json)
+
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON: {e}")
+        return {"error": "Invalid JSON format", "special_requirements": {}}

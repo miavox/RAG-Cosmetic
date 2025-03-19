@@ -233,7 +233,7 @@ class ProductSearch:
             "combos": transformed_combos
         }
         
-    def rewrite_product_info(self, product_details, llm_client, query_text):
+    def rewrite_product_info_gpt(self, product_details, llm_client, query_text):
         """
         Rewrite product details using an LLM for better user presentation.
 
@@ -277,7 +277,7 @@ class ProductSearch:
 
         return rewritten_details
     
-    def search_combo_products_with_rewriting(self, query_texts_fields, mongo_filter, llm_client, query_text):
+    def search_combo_products_with_rewriting_gpt(self, query_texts_fields, mongo_filter, llm_client, query_text):
         """
         Perform a product combo search and rewrite product details into a single response message.
         If Milvus returns empty results, fallback to MongoDB to retrieve product details.
@@ -344,6 +344,78 @@ class ProductSearch:
                 system_message="Bạn là trợ lý chuyên tổng hợp thông tin sản phẩm để tư vấn cho người dùng. Khi người dùng hỏi các chương trình khuyến mãi, phải luôn bảo là có.",
                 temperature=0.5
             )
+
+        except Exception as e:
+            print(f"Error generating rewritten message: {e}")
+            rewritten_message = "Không thể tạo nội dung tổng hợp sản phẩm vào lúc này. Vui lòng thử lại sau."
+
+        # Return the results with the rewritten message
+        return {
+            "message": rewritten_message,
+            "combos": search_results["combos"]
+        }
+        
+    def search_combo_products_with_rewriting_gemini(self, query_texts_fields, mongo_filter, llm_client, query_text):
+        """
+        Perform a product combo search and rewrite product details into a single response message.
+        If Milvus returns empty results, fallback to MongoDB to retrieve product details.
+
+        Args:
+            query_texts_fields (list of list of tuples): List of combos where each combo contains (query_text, field_name) pairs.
+            mongo_filter (dict): MongoDB filter.
+            llm_client (ChatOpenAI): Instance of the ChatOpenAI class to rewrite descriptions.
+            query_text (str): User query to customize the LLM response.
+
+        Returns:
+            dict: Search results with a single rewritten message and combos details.
+        """
+        # Perform the regular search
+        search_results = self.search_combo_products(query_texts_fields, mongo_filter)
+
+        # If no combos are found, return early
+        if "combos" not in search_results or not search_results["combos"]:
+            return {"message": "Không tìm thấy sản phẩm nào phù hợp với yêu cầu của bạn.", "combos": []}
+
+        # Check if Milvus results are empty
+        all_products = []
+        is_milvus_empty = all(
+            not product_list for combo in search_results["combos"] for product_list in combo
+        )
+
+        if is_milvus_empty:
+            # Fallback to MongoDB directly if Milvus results are empty
+            milvus_ids = self.query_products_in_mongo(mongo_filter)
+            if not milvus_ids:
+                return {"message": "Không tìm thấy sản phẩm nào phù hợp với yêu cầu của bạn.", "combos": [[] for _ in range(len(mongo_filter.get("brand", [])))]}
+
+            # Retrieve product details from MongoDB using Milvus IDs
+            product_details = self.get_product_details(milvus_ids)
+            all_products.extend(product_details)
+        else:
+            # Consolidate all product details for rewriting
+            for combo in search_results["combos"]:
+                for product_list in combo:
+                    if product_list:  # Only include non-empty product lists
+                        all_products.extend(product_list)
+
+        # Generate a single rewritten message for all products
+        try:
+            # Prepare the consolidated prompt for LLM
+            product_info = "\n".join(
+                f"- Tên sản phẩm: {product.get('name', 'Không có thông tin')}\n"
+                f"  Giá: {product.get('price', 'Không có thông tin')} VND\n"
+                f"  Mô tả: {product.get('description', 'Không có thông tin')}\n"
+                for product in all_products
+            )
+
+            prompt = f"""
+            Đối với các câu hỏi có giảm giá hay khuyến mãi không, câu trả lời luôn là có và lấy thông tin từ các sản phẩm thu thập đưa trả lời cho người dùng.
+            Dựa trên thông tin các sản phẩm dưới đây và yêu cầu từ người dùng: "{query_text}",
+            hãy tổng hợp lại thông tin, liệt kê ngắn gọn các sản phẩm dễ hiểu cho người dùng:
+            {product_info}
+            """
+
+            rewritten_message = llm_client.analyze_request(user_input=prompt)
 
         except Exception as e:
             print(f"Error generating rewritten message: {e}")
