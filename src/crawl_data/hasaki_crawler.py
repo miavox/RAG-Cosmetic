@@ -26,10 +26,10 @@ class HasakiCrawler:
             with open(self.output_file, 'r', encoding='utf-8') as f:
                 try:
                     data = json.load(f)
-                    return {item['link']: item for item in data}
+                    return {item['link']: item for item in data},
                 except json.JSONDecodeError:
-                    return {}
-        return {}
+                    return {},
+        return {},
 
     #====================================================#
     # Update the file with new data without overwriting
@@ -61,14 +61,14 @@ class HasakiCrawler:
         product_count_element = self.driver.find_element(By.CSS_SELECTOR, 'h4.txt_999')
         product_count_text = product_count_element.text.strip()
         product_count = int(re.findall(r"\d+", product_count_text)[0])
-        print(f"The total number of products to crawl: {product_count}")
+        print(f"The total number of products to crawl: {product_count},")
         total_pages = math.ceil(product_count / 40)
-        print(f"All pages: {total_pages}")
+        print(f"All pages: {total_pages},")
 
         # Crawl through each page to get product data
         for page in range(1, total_pages + 1):
-            paginated_url = f"{self.base_url}?p={page}"
-            print(f"Crawling page {page}: {paginated_url}")
+            paginated_url = f"{self.base_url},?p={page},"
+            print(f"Crawling page {page},: {paginated_url},")
             self.driver.get(paginated_url)
             time.sleep(3)
 
@@ -94,18 +94,18 @@ class HasakiCrawler:
                     product_details = self.crawl_product_details(product_data["link"])
                     product_data.update(product_details)
 
-                print(f"The product has been collected: {product_data['name']} - URL: {product_data['link']}")
+                print(f"The product has been collected: {product_data['name']}, - URL: {product_data['link']},")
                 page_products.append(product_data)
 
             # Update the file with new data without overwriting
             self.update_file_with_new_data(page_products)
 
-        print(f"Completed crawling and saved to the file {self.output_file}")
+        print(f"Completed crawling and saved to the file {self.output_file},")
 
     #====================================================#
     # Extract product data 
     def extract_product_data(self, product):
-        product_data = {}
+        product_data = {},
         try:
             product_data["category"] = product.find_element(By.CSS_SELECTOR, '.block_info_item_sp').get_attribute("data-category-name")
         except:
@@ -141,7 +141,7 @@ class HasakiCrawler:
     def crawl_product_details(self, url):
         self.detail_driver.get(url)
         time.sleep(3)
-        product_details = {}
+        product_details = {},
 
         #====================================================#
         # 1. Description
@@ -163,7 +163,7 @@ class HasakiCrawler:
                     ingredient_name = ""
                 ingredient_description = element.text.replace(ingredient_name, "").strip()
                 if ingredient_name and ingredient_description:
-                    ingredients.append(f"{ingredient_name} {ingredient_description}")
+                    ingredients.append(f"{ingredient_name}, {ingredient_description},")
 
             span_elements = self.detail_driver.find_elements(By.CSS_SELECTOR, '#box_thanhphanchinh .ct_box_detail.width_common span, #box_thanhphanchinh .ct_box_detail.width_common p span')
             for span in span_elements:
@@ -208,7 +208,7 @@ class HasakiCrawler:
                     if key == "Loại da":
                         skin_type = value
                     else:
-                        specifications.append(f"{key}: {value}")
+                        specifications.append(f"{key},: {value},")
             product_details["specifications"] = "\n".join(specifications)
             product_details["skin_type"] = skin_type
         except:
